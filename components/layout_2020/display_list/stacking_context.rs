@@ -1112,6 +1112,15 @@ impl BoxFragment {
             new_clip_chain_id = clip_chain_id;
         }
 
+        if let Some(clip_chain_id) = self.build_clip_path_frame_if_necessary(
+            display_list,
+            new_scroll_node_id,
+            new_clip_chain_id,
+            &containing_block.rect,
+        ) {
+            new_clip_chain_id = clip_chain_id;
+        }
+
         let establishes_containing_block_for_all_descendants = self
             .style
             .establishes_containing_block_for_all_descendants(self.base.flags);
@@ -1405,6 +1414,22 @@ impl BoxFragment {
         );
 
         Some(sticky_node_id)
+    }
+
+    fn build_clip_path_frame_if_necessary(
+        &self,
+        display_list: &mut DisplayList,
+        parent_scroll_node_id: ScrollTreeNodeId,
+        parent_clip_chain_id: wr::ClipChainId,
+        containing_block_rect: &PhysicalRect<Au>,
+    ) -> Option<wr::ClipChainId> {
+        super::clip_path::build(
+            self.style.clone_clip_path(),
+            display_list,
+            parent_scroll_node_id,
+            parent_clip_chain_id,
+            super::BuilderForBoxFragment::new(self, containing_block_rect),
+        )
     }
 
     /// Optionally returns the data for building a reference frame, without yet building it.

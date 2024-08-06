@@ -1303,7 +1303,6 @@ dependencies = [
 [[package]]
 name = "derive_common"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1471,7 +1470,6 @@ dependencies = [
 [[package]]
 name = "dom"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -4010,7 +4008,8 @@ dependencies = [
 [[package]]
 name = "libz-sys"
 version = "1.1.18"
-source = "git+https://github.com/rust-lang/libz-sys.git?rev=f76b7a24ed0a71ef1b8bdac1895e8535cb2cb9c0#f76b7a24ed0a71ef1b8bdac1895e8535cb2cb9c0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c15da26e5af7e25c90b37a2d75cdbf940cf4a55316de9d84c679c9b8bfabf82e"
 dependencies = [
  "cc",
  "libc",
@@ -4090,7 +4089,6 @@ dependencies = [
 [[package]]
 name = "malloc_size_of"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "accountable-refcell",
  "app_units",
@@ -5764,7 +5762,6 @@ dependencies = [
 [[package]]
 name = "selectors"
 version = "0.24.0"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "bitflags 2.6.0",
  "cssparser",
@@ -6053,7 +6050,6 @@ dependencies = [
 [[package]]
 name = "servo_arc"
 version = "0.2.0"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "serde",
  "stable_deref_trait",
@@ -6062,7 +6058,6 @@ dependencies = [
 [[package]]
 name = "servo_atoms"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "string_cache",
  "string_cache_codegen",
@@ -6262,7 +6257,6 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 [[package]]
 name = "size_of_test"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "static_assertions",
 ]
@@ -6403,7 +6397,6 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "static_prefs"
 version = "0.1.0"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 
 [[package]]
 name = "strck"
@@ -6456,7 +6449,6 @@ dependencies = [
 [[package]]
 name = "style"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "app_units",
  "arrayvec",
@@ -6515,7 +6507,6 @@ dependencies = [
 [[package]]
 name = "style_config"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "lazy_static",
 ]
@@ -6523,7 +6514,6 @@ dependencies = [
 [[package]]
 name = "style_derive"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "darling",
  "derive_common",
@@ -6554,7 +6544,6 @@ dependencies = [
 [[package]]
 name = "style_traits"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "app_units",
  "bitflags 2.6.0",
@@ -6924,7 +6913,6 @@ dependencies = [
 [[package]]
 name = "to_shmem"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "cssparser",
  "servo_arc",
@@ -6937,7 +6925,6 @@ dependencies = [
 [[package]]
 name = "to_shmem_derive"
 version = "0.0.1"
-source = "git+https://github.com/servo/stylo?branch=2024-07-16#ed09e046c8cc7654eb3a0c2e3ec789503f64ed74"
 dependencies = [
  "darling",
  "derive_common",
@@ -8555,3 +8542,8 @@ checksum = "73ab332fe2f6680068f3582b16a24f90ad7096d5d39b974d1c0aff0125116f02"
 dependencies = [
  "simd-adler32",
 ]
+
+[[patch.unused]]
+name = "libz-sys"
+version = "1.1.18"
+source = "git+https://github.com/rust-lang/libz-sys.git?rev=f76b7a24ed0a71ef1b8bdac1895e8535cb2cb9c0#f76b7a24ed0a71ef1b8bdac1895e8535cb2cb9c0"
