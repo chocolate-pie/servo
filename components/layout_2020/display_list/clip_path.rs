@@ -1,16 +1,25 @@
 use std::cmp::Ordering;
+use std::sync::Arc;
+use std::mem::ManuallyDrop;
 
-use style::values::computed::basic_shape::{BasicShape, ClipPath};
+use style::values::computed::basic_shape::{BasicShape, ClipPath, FillRule};
 use style::values::computed::length::Length;
 use style::values::computed::length_percentage::{LengthPercentage, NonNegativeLengthPercentage};
 use style::values::computed::position::Position;
-use style::values::generics::basic_shape::{GenericShapeRadius, ShapeBox, ShapeGeometryBox};
+use style::values::generics::basic_shape::{
+    GenericPolygon, GenericShapeRadius, ShapeBox, ShapeGeometryBox,
+};
 use style::values::generics::position::GenericPositionOrAuto;
 use webrender_api::units::{LayoutPoint, LayoutRect, LayoutSize};
-use webrender_api::ClipChainId;
+use webrender_api::{
+    BlobImageKey, ClipChainId, FillRule as WrFillRule, ImageDescriptor, ImageDescriptorFlags,
+    ImageFormat, ImageMask, POLYGON_CLIP_VERTEX_MAX,
+};
 use webrender_traits::display_list::ScrollTreeNodeId;
+use webrender_traits::ImageUpdate;
 
 use super::{compute_marginbox_radius, normalize_radii};
+use crate::blob_rasterizer::{BlobData, BlobImageCommand, BlobImageCommandKind};
 
 pub(super) fn build(
     clip_path: ClipPath,
@@ -34,6 +43,13 @@ pub(super) fn build(
             ShapeBox::MarginBox => *fragment_builder.margin_rect(),
         };
         match *shape {
+            BasicShape::Polygon(polygon) => build_polygon(
+                polygon,
+                layout_rect,
+                parent_scroll_node_id,
+                parent_clip_chain_id,
+                display_list,
+            ),
             BasicShape::Circle(_) | BasicShape::Ellipse(_) | BasicShape::Rect(_) => {
                 build_simple_shape(
                     *shape,
@@ -43,7 +59,7 @@ pub(super) fn build(
                     display_list,
                 )
             },
-            BasicShape::Polygon(_) | BasicShape::PathOrShape(_) => None,
+            BasicShape::PathOrShape(_) => None,
         }
     } else {
         let layout_rect = match geometry_box {
@@ -67,6 +83,70 @@ pub(super) fn build(
             display_list,
         )
     }
+}
+
+fn build_polygon(
+    polygon: GenericPolygon<LengthPercentage>,
+    layout_rect: LayoutRect,
+    parent_scroll_node_id: ScrollTreeNodeId,
+    parent_clip_chain_id: ClipChainId,
+    display_list: &mut super::DisplayList,
+) -> Option<ClipChainId> {
+    if polygon.coordinates.len() > POLYGON_CLIP_VERTEX_MAX {
+        return None;
+    }
+    let webrender_api_sender = &display_list.webrender_api_sender;
+    let mut bounds = None;
+    let mut points = Vec::with_capacity(polygon.coordinates.len());
+    let mut coordinates = Vec::with_capacity(polygon.coordinates.len());
+    for coordinate in polygon.coordinates {
+        let x = coordinate.0.resolve(Length::new(layout_rect.width()));
+        let y = coordinate.1.resolve(Length::new(layout_rect.height()));
+        let point = LayoutPoint::new(x.px(), y.px());
+        let bounds = bounds.get_or_insert(LayoutRect::new(point, point));
+        *bounds = LayoutRect::new(bounds.min.min(point), bounds.max.max(point));
+        let coord = LayoutPoint::new(x.px() + layout_rect.min.x, y.px() + layout_rect.min.y);
+        points.push(point);
+        coordinates.push(coord);
+    }
+    let bounds = bounds?;
+    let mut updates = Vec::with_capacity(1);
+    let mut blob_data = BlobData::new_with_capacity(1);
+    for point in &mut points {
+        *point = *point - bounds.min.to_vector();
+    }
+    let command = BlobImageCommand {
+        kind: BlobImageCommandKind::DrawPolygon(ManuallyDrop::new(points)),
+        bounds: layout_rect,
+    };
+    let descriptor = ImageDescriptor::new(
+        bounds.width() as i32,
+        bounds.height() as i32,
+        ImageFormat::RGBA8,
+        ImageDescriptorFlags::IS_OPAQUE,
+    );
+    let image_mask = ImageMask {
+        image: webrender_api_sender.generate_image_key()?,
+        rect: bounds.translate(layout_rect.min.to_vector()),
+    };
+    let fill = match polygon.fill {
+        FillRule::Evenodd => WrFillRule::Evenodd,
+        FillRule::Nonzero => WrFillRule::Nonzero,
+    };
+    let blob_key = BlobImageKey(image_mask.image);
+    let spatial_id = parent_scroll_node_id.spatial_id;
+    blob_data.new_entry(command);
+    updates.push(ImageUpdate::AddBlobImage(
+        blob_key,
+        descriptor,
+        Arc::new(blob_data.take()),
+    ));
+    webrender_api_sender.update_images(updates);
+    let new_clip_id =
+        display_list
+            .wr
+            .define_clip_image_mask(spatial_id, image_mask, &coordinates, fill);
+    Some(display_list.define_clip_chain(parent_clip_chain_id, [new_clip_id]))
 }
 
 fn build_simple_shape(

@@ -8,6 +8,7 @@ pub mod display_list;
 pub mod rendering_context;
 
 use std::collections::HashMap;
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 use std::sync::{Arc, Mutex};
 
 use base::id::PipelineId;
@@ -15,13 +16,13 @@ use crossbeam_channel::Sender;
 use display_list::{CompositorDisplayListInfo, ScrollTreeNodeId};
 use embedder_traits::Cursor;
 use euclid::default::Size2D;
-use ipc_channel::ipc::{self, IpcBytesReceiver, IpcSender};
+use ipc_channel::ipc::{self, IpcBytesReceiver, IpcError, IpcSender};
 use libc::c_void;
 use log::warn;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use webrender_api::units::{DevicePoint, LayoutPoint, TexelRect};
 use webrender_api::{
-    BuiltDisplayList, BuiltDisplayListDescriptor, ExternalImage, ExternalImageData,
+    BlobImageKey, BuiltDisplayList, BuiltDisplayListDescriptor, ExternalImage, ExternalImageData,
     ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalScrollId,
     FontInstanceFlags, FontInstanceKey, FontKey, HitTestFlags, ImageData, ImageDescriptor,
     ImageKey, NativeFontHandle, PipelineId as WebRenderPipelineId,
@@ -410,6 +411,9 @@ impl WebRenderScriptApi {
                     };
                     SerializedImageUpdate::UpdateImage(k, d, data)
                 },
+                ImageUpdate::AddBlobImage(k, d, data) => {
+                    SerializedImageUpdate::AddBlobImage(k, d, data)
+                },
             })
             .collect();
 
@@ -443,6 +447,8 @@ impl WebRenderScriptApi {
 pub enum ImageUpdate {
     /// Register a new image.
     AddImage(ImageKey, ImageDescriptor, ImageData),
+    /// Register a new blob image.
+    AddBlobImage(BlobImageKey, ImageDescriptor, Arc<Vec<u8>>),
     /// Delete a previously registered image registration.
     DeleteImage(ImageKey),
     /// Update an existing image registration.
@@ -454,6 +460,8 @@ pub enum ImageUpdate {
 pub enum SerializedImageUpdate {
     /// Register a new image.
     AddImage(ImageKey, ImageDescriptor, SerializedImageData),
+    /// Register a new blob image.
+    AddBlobImage(BlobImageKey, ImageDescriptor, Arc<Vec<u8>>),
     /// Delete a previously registered image registration.
     DeleteImage(ImageKey),
     /// Update an existing image registration.
@@ -467,6 +475,11 @@ pub enum SerializedImageData {
     /// A simple series of bytes, provided by the embedding and owned by WebRender.
     /// The format is stored out-of-band, currently in ImageDescriptor.
     Raw(ipc::IpcBytesReceiver),
+    /// An series of commands that can be rasterized into an image via an
+    /// embedding-provided callback.
+    ///
+    /// The commands are stored elsewhere and this variant is used as a placeholder.
+    Blob,
     /// An image owned by the embedding, and referenced by WebRender. This may
     /// take the form of a texture or a heap-allocated buffer.
     External(ExternalImageData),
@@ -474,10 +487,13 @@ pub enum SerializedImageData {
 
 impl SerializedImageData {
     /// Convert to ``ImageData`.
-    pub fn to_image_data(&self) -> Result<ImageData, ipc::IpcError> {
+    pub fn to_image_data(&self) -> Result<ImageData, IpcError> {
         match self {
             SerializedImageData::Raw(rx) => rx.recv().map(ImageData::new),
             SerializedImageData::External(image) => Ok(ImageData::External(*image)),
+            SerializedImageData::Blob => {
+                Err(IpcError::Io(IoError::from(IoErrorKind::InvalidInput)))
+            },
         }
     }
 }

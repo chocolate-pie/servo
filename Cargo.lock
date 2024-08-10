@@ -3753,6 +3753,7 @@ dependencies = [
  "servo_url",
  "style",
  "style_traits",
+ "tiny-skia",
  "unicode-script",
  "unicode-segmentation",
  "url",
@@ -6876,6 +6877,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
+ "png",
  "tiny-skia-path",
 ]
 

@@ -16,6 +16,7 @@ use style::computed_values::float::T as ComputedFloat;
 use style::computed_values::mix_blend_mode::T as ComputedMixBlendMode;
 use style::computed_values::overflow_x::T as ComputedOverflow;
 use style::computed_values::position::T as ComputedPosition;
+use style::values::computed::basic_shape::ClipPath;
 use style::properties::ComputedValues;
 use style::values::computed::{ClipRectOrAuto, Length};
 use style::values::generics::box_::Perspective;
@@ -479,7 +480,8 @@ impl StackingContext {
         if effects.filter.0.is_empty() &&
             effects.opacity == 1.0 &&
             effects.mix_blend_mode == ComputedMixBlendMode::Normal &&
-            !style.has_transform_or_perspective(FragmentFlags::empty())
+            !style.has_transform_or_perspective(FragmentFlags::empty()) &&
+            style.clone_clip_path() == ClipPath::None
         {
             return false;
         }
@@ -1027,18 +1029,8 @@ impl BoxFragment {
     ) {
         let context_type = match self.get_stacking_context_type() {
             Some(context_type) => context_type,
-            None => {
-                self.build_stacking_context_tree_for_children(
-                    fragment,
-                    display_list,
-                    containing_block,
-                    containing_block_info,
-                    parent_stacking_context,
-                );
-                return;
-            },
+            None => StackingContextType::RealStackingContext,
         };
-
         if context_type == StackingContextType::AtomicInlineStackingContainer {
             // Push a dummy fragment that indicates when the new stacking context should be painted.
             parent_stacking_context.contents.push(
@@ -1050,9 +1042,15 @@ impl BoxFragment {
             );
         }
 
+        let clip_path_chain_id = self.build_clip_path_frame_if_necessary(
+            display_list,
+            containing_block.scroll_node_id,
+            containing_block.clip_chain_id,
+            &containing_block.rect
+        );
         let mut child_stacking_context = parent_stacking_context.create_descendant(
             containing_block.scroll_node_id.spatial_id,
-            containing_block.clip_chain_id,
+            clip_path_chain_id.unwrap_or(containing_block.clip_chain_id),
             self.style.clone(),
             context_type,
         );
@@ -1107,15 +1105,6 @@ impl BoxFragment {
             display_list,
             &new_scroll_node_id,
             &new_clip_chain_id,
-            &containing_block.rect,
-        ) {
-            new_clip_chain_id = clip_chain_id;
-        }
-
-        if let Some(clip_chain_id) = self.build_clip_path_frame_if_necessary(
-            display_list,
-            new_scroll_node_id,
-            new_clip_chain_id,
             &containing_block.rect,
         ) {
             new_clip_chain_id = clip_chain_id;
